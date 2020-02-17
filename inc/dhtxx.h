@@ -14,6 +14,7 @@
 #include <rthw.h>
 #include <rtthread.h>
 #include <rtdevice.h>
+#include <board.h>
 
 #define DHTLIB_VERSION       "0.0.1"
 
@@ -26,31 +27,35 @@
 
 #define DHT_DATA_SIZE        5
 
-enum dhtxx_type
+typedef enum dht_type
 {
 	SENSOR_DHT11 = 11,
 	SENSOR_DHT21 = 21,
 	SENSOR_DHT22 = 22
-};
+}dht_type;
 
-struct dhtxx_device
+struct dht_device
 {
+	struct rt_device_pin *pin_dev;
+	
 	rt_uint8_t  type;
 	rt_base_t   pin;
 	rt_uint32_t begin_time;
 	rt_uint8_t  data[DHT_DATA_SIZE];
 	rt_mutex_t  lock;
 };
-typedef struct dhtxx_device *dhtxx_device_t;
+typedef struct dht_device *dht_device_t;
 
-dhtxx_device_t dhtxx_init(dhtxx_device_t this, dhtxx_type type, rt_base_t pin);
-rt_bool_t dhtxx_read(dhtxx_device_t dev);
-float dhtxx_get_humidity(dhtxx_device_t dev);
-float dhtxx_get_temperature(dhtxx_device_t dev);
+dht_device_t dht_init(dht_device_t dev, dht_type type, rt_base_t pin);
+int dht_deinit(dht_device_t dev);
+
+rt_bool_t dht_read(dht_device_t dev);
+float dht_get_humidity(dht_device_t dev);
+float dht_get_temperature(dht_device_t dev);
 float convert_c2k(float c);
 float convert_c2f(float c);
 float convert_f2c(float f);
 
-int rt_hw_dhtxx_init(const char *name, struct rt_sensor_config *cfg);
+/* int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg); */
 
 #endif /* __DHTXX_H__ */

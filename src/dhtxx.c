@@ -5,10 +5,10 @@
  *
  * Change Logs:
  * Date           Author       Notes
- * 2020-01-20     RudyLo       the first version
+ * 2020-01-20     luhuadong    the first version
  */
 
-#include "dht11.h"
+#include "dht.h"
 
 RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
 {
@@ -20,7 +20,14 @@ RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
     while (delta - SysTick->VAL < us) continue;
 }
 
-static uint8_t dhtxx_read_bit(rt_base_t pin)
+/**
+ * This function will read a bit from sensor.
+ *
+ * @param pin  the pin of Dout
+ *
+ * @return the bit value
+ */
+static uint8_t dht_read_bit(const rt_base_t pin)
 {
 	uint8_t retry = 0;
 
@@ -42,37 +49,62 @@ static uint8_t dhtxx_read_bit(rt_base_t pin)
 	return rt_pin_read(pin);
 }
 
-static uint8_t dhtxx_read_byte(rt_base_t pin)
+/**
+ * This function will read a byte from sensor.
+ *
+ * @param pin  the pin of Dout
+ *
+ * @return the byte
+ */
+static uint8_t dht_read_byte(const rt_base_t pin)
 {
-	uint8_t i, data = 0;
+	uint8_t i, byte = 0;
 
     for(i=0; i<8; i++)
     {
-        data <<= 1;
-		data |= dhtxx_read_bit(pin);
+        byte <<= 1;
+		byte |= dht_read_bit(pin);
     }
 
-    return data;
+    return byte;
 }
 
-dhtxx_device_t dhtxx_init(dhtxx_device_t dev, dhtxx_type type, rt_base_t pin)
+/**
+ * This function will init dhtxx sensor device.
+ *
+ * @param dev  the device to init
+ * @param type the type of sensor
+ * @param pin  the pin of Dout
+ *
+ * @return the device handler
+ */
+dht_device_t dht_init(dht_device_t dev, const dht_type type, const rt_base_t pin)
 {
 	if(dev == NULL) return RT_NULL;
 	
 	dev->type = type;
 	dev->pin  = pin;
 
-	if(type == SENSOR_DHT11) dev->begin_time = DHT11_BEGIN_TIME;
-	else                     dev->begin_time = DHT2x_BEGIN_TIME;
+	dev->begin_time = DHT2x_BEGIN_TIME;
+	if(type == SENSOR_DHT11) dev->begin_time = DHT11_BEGIN_TIME;                  
 
 	rt_memset(dev->data, 0, DHT_DATA_SIZE);
 
 	return dev;
 }
 
-rt_bool_t dhtxx_read(dhtxx_device_t dev)
+/**
+ * This function will read and update data array.
+ *
+ * @param dev  the device to be operated
+ *
+ * @return RT_TRUE if read successfully, otherwise return RT_FALSE.
+ */
+rt_bool_t dht_read(dht_device_t dev)
 {
-	uint8_t i, retry = 0;
+	RT_ASSERT(dev);
+
+	uint8_t i, retry = 0, sum = 0;
 
 	/* Reset data buffer */
 	rt_memset(dev->data, 0, DHT_DATA_SIZE);
@@ -82,14 +114,8 @@ rt_bool_t dhtxx_read(dhtxx_device_t dev)
     rt_pin_write(dev->pin, PIN_LOW);
     rt_thread_mdelay(dev->begin_time);             /* Tbe */
 
-#if 0
-    rt_pin_write(dev->pin, PIN_HIGH);
-    rt_hw_us_delay(DHTxx_PULL_TIME);
-    rt_pin_mode(dev->pin, PIN_MODE_INPUT);
-#else
     rt_pin_mode(dev->pin, PIN_MODE_INPUT_PULLUP);
     rt_hw_us_delay(DHTxx_PULL_TIME);               /* Tgo */
-#endif
 
     /* Waiting for sensor reply */
     while (rt_pin_read(dev->pin) && retry < DHTxx_REPLY_TIME)
@@ -110,15 +136,30 @@ rt_bool_t dhtxx_read(dhtxx_device_t dev)
     /* Read data */
     for(i=0; i<DHT_DATA_SIZE; i++)
 	{
-		dev->data[i] = dhtxx_read_byte(dev->pin);
+		dev->data[i] = dht_read_byte(dev->pin);
 	}
 
+	/* Checksum */
+    for(i=0; i<DHT_DATA_SIZE-1; i++)
+	{
+		sum += dev->data[i];
+	}
+	if(sum != dev->data[4]) return RT_FALSE;
 
 	return RT_TRUE;
 }
 
-float dhtxx_get_humidity(dhtxx_device_t dev)
+/**
+ * This function will get the humidity from dhtxx sensor.
+ *
+ * @param dev  the device to be operated
+ *
+ * @return the humidity value
+ */
+float dht_get_humidity(dht_device_t const dev)
 {
+	RT_ASSERT(dev);
+
 	float h = 0.0;
 
 	switch(dev->type)
@@ -137,8 +178,17 @@ float dhtxx_get_humidity(dhtxx_device_t dev)
 	return h;
 }
 
-float dhtxx_get_temperature(dhtxx_device_t dev)
+/**
+ * This function will get the temperature from dhtxx sensor.
+ *
+ * @param dev  the device to be operated
+ *
+ * @return the temperature value
+ */
+float dht_get_temperature(dht_device_t const dev)
 {
+	RT_ASSERT(dev);
+
 	float t = 0.0;
 
 	switch(dev->type)
@@ -160,16 +210,37 @@ float dhtxx_get_temperature(dhtxx_device_t dev)
 	return t;
 }
 
+/**
+ * This function will convert temperature in degree Celsius to Kelvin.
+ *
+ * @param c  the temperature indicated by degree Celsius
+ *
+ * @return the result
+ */
 float convert_c2k(float c)
 {
 	return c + 273.15;
 }
 
+/**
+ * This function will convert temperature in degree Celsius to Fahrenheit.
+ *
+ * @param c  the temperature indicated by degree Celsius
+ *
+ * @return the result
+ */
 float convert_c2f(float c)
 {
 	return c * 1.8 + 32;
 }
 
+/**
+ * This function will convert temperature in degree Fahrenheit to Celsius.
+ *
+ * @param f  the temperature indicated by degree Fahrenheit
+ *
+ * @return the result
+ */
 float convert_f2c(float f)
 {
 	return (f - 32) * 0.55555;

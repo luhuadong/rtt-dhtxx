@@ -28,11 +28,11 @@ static void cat_dht11(void)
         float t = dht_get_temperature(&dht11);
         float h = dht_get_humidity(&dht11);
 
-        rt_kprintf("(DHT11) temperature: %d.%02d'C, humidity: %d.%02d%%\n", 
+        rt_kprintf("(DHT11) temperature: %d.%02d'C, humidity: %d.%02d%\n", 
                     (int)t, (int)(t*100) % 100, (int)h, (int)(h*100) % 100);
     }
     else {
-        rt_kprintf("(DHT11) error\n");
+        rt_kprintf("(DHT11) read error\n");
     }
 }
 
@@ -51,7 +51,7 @@ static void cat_dht22(void)
                     (int)t, (int)(t*100) % 100, (int)h, (int)(h*100) % 100);
     }
     else {
-        rt_kprintf("(DHT22) error\n");
+        rt_kprintf("(DHT22) read error\n");
     }
 }
 
