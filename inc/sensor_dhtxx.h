@@ -5,11 +5,11 @@
  *
  * Change Logs:
  * Date           Author       Notes
- * 2020-01-20     RudyLo       the first version
+ * 2020-02-17     RudyLo       the first version
  */
 
-#ifndef __DHTXX_H__
-#define __DHTXX_H__
+#ifndef __SENSOR_DHTXX_H__
+#define __SENSOR_DHTXX_H__
 
 #include <rthw.h>
 #include <rtthread.h>
@@ -29,13 +29,15 @@
 
 typedef enum dht_type
 {
-	SENSOR_DHT11 = 11,
-	SENSOR_DHT21 = 21,
-	SENSOR_DHT22 = 22
+    SENSOR_DHT11 = 11,
+    SENSOR_DHT21 = 21,
+    SENSOR_DHT22 = 22
 }dht_type;
 
 struct dht_device
 {
+	struct rt_device_pin *pin_dev;
+	
 	rt_uint8_t  type;
 	rt_base_t   pin;
 	rt_uint32_t begin_time;
@@ -44,16 +46,13 @@ struct dht_device
 };
 typedef struct dht_device *dht_device_t;
 
-dht_device_t dht_init(dht_device_t dev, dht_type type, rt_base_t pin);
-int dht_deinit(dht_device_t dev);
+//dht_device_t dht_init(dht_device_t dev, dht_type type, rt_base_t pin);
+//int dht_deinit(dht_device_t dev);
 
-rt_bool_t dht_read(dht_device_t dev);
-float dht_get_humidity(dht_device_t dev);
-float dht_get_temperature(dht_device_t dev);
-float convert_c2k(float c);
-float convert_c2f(float c);
-float convert_f2c(float f);
+//rt_bool_t dht_read(dht_device_t dev);
+//float dht_get_humidity(dht_device_t dev);
+//float dht_get_temperature(dht_device_t dev);
 
-/* int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg); */
+int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg);
 
-#endif /* __DHTXX_H__ */
+#endif /* __SENSOR_DHTXX_H__ */
