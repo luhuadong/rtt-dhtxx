@@ -8,7 +8,19 @@
  * 2020-02-17     luhuadong    the first version
  */
 
-#include "dht.h"
+#include "sensor_dhtxx.h"
+
+#define DHTLIB_VERSION       "0.0.1"
+
+/* timing */
+#define DHT11_BEGIN_TIME     20  /* ms */
+#define DHT2x_BEGIN_TIME     1   /* ms */
+#define DHTxx_PULL_TIME      30  /* us */
+#define DHTxx_REPLY_TIME     100 /* us */
+#define MEASURE_TIME         40  /* us */
+
+static struct dht_model_table[] = {"dht11", "dht12", "dht21", "dht22"};
+
 
 RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
 {
@@ -78,19 +90,12 @@ static uint8_t dht_read_byte(const rt_base_t pin)
  *
  * @return the device handler
  */
-dht_device_t dht_init(dht_device_t dev, const dht_type type, const rt_base_t pin)
+static int dht_init(struct rt_sensor_intf *intf)
 {
-	if(dev == NULL) return RT_NULL;
-	
-	dev->type = type;
-	dev->pin  = pin;
+    /* type <= intf->type, pin <= intf->user_data */
+    /* I don't know what can I do */
 
-	dev->begin_time = DHT2x_BEGIN_TIME;
-	if(type == SENSOR_DHT11) dev->begin_time = DHT11_BEGIN_TIME;                  
-
-	rt_memset(dev->data, 0, DHT_DATA_SIZE);
-
-	return dev;
+    return RT_EOK;
 }
 
 /**
@@ -210,6 +215,63 @@ float dht_get_temperature(dht_device_t const dev)
 	return t;
 }
 
+static rt_size_t dht_fetch_data(struct rt_sensor_device *sensor, void *buf, rt_size_t len)
+{
+    RT_ASSERT(sensor);
+    RT_ASSERT(buf);
+
+    if (sensor->config.mode == RT_SENSOR_MODE_POLLING)
+    {
+        return _ds18b20_polling_get_data(sensor, buf);
+    }
+    else
+        return 0;
+}
+static rt_size_t bme280_fetch_data(struct rt_sensor_device *sensor, void *buf, rt_size_t len)
+{
+    struct bme280_data comp_data;
+    struct rt_sensor_data *data = buf;
+        
+    if (sensor->info.type == RT_SENSOR_CLASS_BARO)
+    {
+        bme280_get_sensor_data(BME280_PRESS, &comp_data, &_bme280_dev);
+
+        data->type = RT_SENSOR_CLASS_BARO;
+        data->data.baro = comp_data.pressure;
+        data->timestamp = rt_sensor_get_ts();
+    }
+    else if (sensor->info.type == RT_SENSOR_CLASS_TEMP)
+    {
+        bme280_get_sensor_data(BME280_TEMP, &comp_data, &_bme280_dev);
+
+        data->type = RT_SENSOR_CLASS_TEMP;
+        data->data.temp = comp_data.temperature / 10;
+        data->timestamp = rt_sensor_get_ts();
+    }
+    else if (sensor->info.type == RT_SENSOR_CLASS_HUMI)
+    {
+        bme280_get_sensor_data(BME280_HUM, &comp_data, &_bme280_dev);
+
+        data->type = RT_SENSOR_CLASS_HUMI;
+        data->data.humi = comp_data.humidity / 100;
+        data->timestamp = rt_sensor_get_ts();
+    }
+    return 1;
+}
+
+static rt_err_t dht_control(struct rt_sensor_device *sensor, int cmd, void *args)
+{
+    rt_err_t result = RT_EOK;
+
+    return result;
+}
+
+static struct rt_sensor_ops sensor_ops =
+{
+    dht_fetch_data,
+    dht_control
+};
+
 /**
  * This function will convert temperature in degree Celsius to Kelvin.
  *
@@ -223,7 +285,7 @@ int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     rt_sensor_t sensor_temp = RT_NULL, sensor_humi = RT_NULL;
     struct rt_sensor_module *dht_module = RT_NULL;
 
-    if (_dht_init(&cfg->intf) != RT_EOK)
+    if (dht_init(&cfg->intf) != RT_EOK)
     {
         return RT_ERROR;
     }
@@ -237,6 +299,8 @@ int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     module->sen[1] = sensor_temp;
     module->sen_num = 2;
 
+    //char *model_name = dht_model_table[(dht_info_t)(cfg->intf.user_data)->type];
+
     /* humidity sensor register */
     {
         sensor_humi = rt_calloc(1, sizeof(struct rt_sensor_device));
@@ -245,7 +309,7 @@ int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
 
         sensor_humi->info.type       = RT_SENSOR_CLASS_HUMI;
         sensor_humi->info.vendor     = RT_SENSOR_VENDOR_AOSONG;
-        sensor_humi->info.model      = "dht";
+        sensor_humi->info.model      = dht_model_table[cfg->intf.type];
         sensor_humi->info.unit       = RT_SENSOR_UNIT_PERMILLAGE;
         sensor_humi->info.intf_type  = RT_SENSOR_INTF_ONEWIRE;
         sensor_baro->info.range_max  = 1000;
@@ -272,7 +336,7 @@ int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
 
         sensor_temp->info.type       = RT_SENSOR_CLASS_TEMP;
         sensor_temp->info.vendor     = RT_SENSOR_VENDOR_AOSONG;
-        sensor_temp->info.model      = "dht";
+        sensor_temp->info.model      = dht_model_table[cfg->intf.type];
         sensor_temp->info.unit       = RT_SENSOR_UNIT_DCELSIUS;
         sensor_temp->info.intf_type  = RT_SENSOR_INTF_ONEWIRE;
         sensor_baro->info.range_max  = 800;

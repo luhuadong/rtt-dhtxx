@@ -11,47 +11,15 @@
 #ifndef __SENSOR_DHTXX_H__
 #define __SENSOR_DHTXX_H__
 
-#include <rthw.h>
 #include <rtthread.h>
 #include <rtdevice.h>
-#include <board.h>
 
-#define DHTLIB_VERSION       "0.0.1"
-
-/* timing */
-#define DHT11_BEGIN_TIME     20  /* ms */
-#define DHT2x_BEGIN_TIME     1   /* ms */
-#define DHTxx_PULL_TIME      30  /* us */
-#define DHTxx_REPLY_TIME     100 /* us */
-#define MEASURE_TIME         40  /* us */
-
-#define DHT_DATA_SIZE        5
-
-typedef enum dht_type
-{
-    SENSOR_DHT11 = 11,
-    SENSOR_DHT21 = 21,
-    SENSOR_DHT22 = 22
-}dht_type;
-
-struct dht_device
-{
-	struct rt_device_pin *pin_dev;
-	
-	rt_uint8_t  type;
-	rt_base_t   pin;
-	rt_uint32_t begin_time;
-	rt_uint8_t  data[DHT_DATA_SIZE];
-	rt_mutex_t  lock;
-};
-typedef struct dht_device *dht_device_t;
-
-//dht_device_t dht_init(dht_device_t dev, dht_type type, rt_base_t pin);
-//int dht_deinit(dht_device_t dev);
-
-//rt_bool_t dht_read(dht_device_t dev);
-//float dht_get_humidity(dht_device_t dev);
-//float dht_get_temperature(dht_device_t dev);
+#define DHT11                0
+#define DHT12                1
+#define DHT21                2
+#define DHT22                3
+#define AM2301               DHT21
+#define AM2302               DHT22
 
 int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg);
 

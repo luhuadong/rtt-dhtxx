@@ -8,7 +8,7 @@
  * 2020-01-20     luhuadong    the first version
  */
 
-#include "dht.h"
+#include "dhtxx.h"
 
 RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
 {
@@ -86,7 +86,7 @@ dht_device_t dht_init(dht_device_t dev, const dht_type type, const rt_base_t pin
 	dev->pin  = pin;
 
 	dev->begin_time = DHT2x_BEGIN_TIME;
-	if(type == SENSOR_DHT11) dev->begin_time = DHT11_BEGIN_TIME;                  
+	if(type == SENSOR_DHT11) dev->begin_time = DHT11_BEGIN_TIME;
 
 	rt_memset(dev->data, 0, DHT_DATA_SIZE);
 
