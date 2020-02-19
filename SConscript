@@ -7,9 +7,11 @@ cwd   = GetCurrentDir()
 # add dhtxx src files.
 if GetDepend('PKG_USING_DHTXX'):
     src += Glob('src/dhtxx.c')
+    src += Glob('src/sensor_dhtxx.c')
 
 if GetDepend('PKG_USING_DHTXX_SAMPLE'):
     src += Glob('examples/dhtxx_sample.c')
+    src += Glob('examples/sensor_dhtxx_sample.c')
 
 # add dhtxx include path.
 path  = [cwd + '/inc']

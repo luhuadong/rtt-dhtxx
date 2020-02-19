@@ -12,47 +12,46 @@
 #include <rtdevice.h>
 #include <board.h>
 
-#include "dht.h"
+#include "dhtxx.h"
 
 #define DHT11_DATA_PIN           GET_PIN(E, 9)
 #define DHT22_DATA_PIN           GET_PIN(E, 13)
 
-/* cat_dht11 */
+/* cat_dht11 by static */
 static void cat_dht11(void)
 {
     struct dht_device dht11;
-    dht_init(&dht11, SENSOR_DHT11, DHT11_DATA_PIN);
+    dht_init(&dht11, DHT11, DHT11_DATA_PIN);
 
     if(dht_read(&dht11)) {
 
-        float t = dht_get_temperature(&dht11);
-        float h = dht_get_humidity(&dht11);
+        rt_int32_t temp = dht_get_temperature(&dht11);
+        rt_int32_t humi = dht_get_humidity(&dht11);
 
-        rt_kprintf("(DHT11) temperature: %d.%02d'C, humidity: %d.%02d%\n", 
-                    (int)t, (int)(t*100) % 100, (int)h, (int)(h*100) % 100);
+        rt_kprintf("Temp: %d, Humi: %d\n", temp, humi);
     }
     else {
-        rt_kprintf("(DHT11) read error\n");
+        rt_kprintf("DHT11 read error\n");
     }
 }
 
-/* cat_dht22 */
+/* cat_dht22 by dynamic */
 static void cat_dht22(void)
 {
-    struct dht_device dht22;
-    dht_init(&dht22, SENSOR_DHT22, DHT22_DATA_PIN);
+    dht_device_t dht22 = dht_create(DHT22, DHT22_DATA_PIN);
 
-    if(dht_read(&dht22)) {
+    if(dht_read(dht22)) {
 
-        float t = dht_get_temperature(&dht22);
-        float h = dht_get_humidity(&dht22);
+        rt_int32_t temp = dht_get_temperature(dht22);
+        rt_int32_t humi = dht_get_humidity(dht22);
 
-        rt_kprintf("(DHT22) temperature: %d.%02d'C, humidity: %d.%02d%\n", 
-                    (int)t, (int)(t*100) % 100, (int)h, (int)(h*100) % 100);
+        rt_kprintf("Temp: %d, Humi: %d\n", temp, humi);
     }
     else {
-        rt_kprintf("(DHT22) read error\n");
+        rt_kprintf("DHT22 read error\n");
     }
+
+    dht_delete(dht22);
 }
 
 #ifdef FINSH_USING_MSH

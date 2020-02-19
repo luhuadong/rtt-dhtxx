@@ -11,51 +11,45 @@
 #ifndef __DHTXX_H__
 #define __DHTXX_H__
 
-#include <rthw.h>
 #include <rtthread.h>
 #include <rtdevice.h>
-#include <board.h>
+#include <sensor.h>
 
-#define DHTLIB_VERSION       "0.1.0"
+#define DHTLIB_VERSION       "0.1.2"
 
-/* timing */
-#define DHT11_BEGIN_TIME     20  /* ms */
-#define DHT2x_BEGIN_TIME     1   /* ms */
-#define DHTxx_PULL_TIME      30  /* us */
-#define DHTxx_REPLY_TIME     100 /* us */
-#define MEASURE_TIME         40  /* us */
+#define DHT11                0
+#define DHT12                1
+#define DHT21                2
+#define DHT22                3
+#define AM2301               DHT21
+#define AM2302               DHT22
 
 #define DHT_DATA_SIZE        5
 
-typedef enum dht_type
-{
-	SENSOR_DHT11 = 11,
-	SENSOR_DHT21 = 21,
-	SENSOR_DHT22 = 22
-}dht_type;
-
 struct dht_device
 {
-	rt_uint8_t  type;
-	rt_base_t   pin;
-	rt_uint32_t begin_time;
-	rt_uint8_t  data[DHT_DATA_SIZE];
-	rt_mutex_t  lock;
+    rt_base_t   pin;
+    rt_uint8_t  type;
+    rt_uint8_t  data[DHT_DATA_SIZE];
+    rt_mutex_t  lock;
 };
 typedef struct dht_device *dht_device_t;
 
-dht_device_t dht_init(dht_device_t dev, dht_type type, rt_base_t pin);
-int dht_deinit(dht_device_t dev);
+dht_device_t dht_create(const rt_uint8_t type, const rt_base_t pin);
+void dht_delete(dht_device_t dev);
 
-rt_bool_t dht_read(dht_device_t dev);
-float dht_get_humidity(dht_device_t dev);
-float dht_get_temperature(dht_device_t dev);
+rt_err_t   dht_init(dht_device_t dev, const rt_uint8_t type, const rt_base_t pin);
+rt_bool_t  dht_read(dht_device_t dev);
+rt_int32_t dht_get_humidity(dht_device_t dev);
+rt_int32_t dht_get_temperature(dht_device_t dev);
+
 float convert_c2k(float c);
 float convert_c2f(float c);
 float convert_f2c(float f);
 
-int split_int(const int num, int *integer, int *decimal, const unsigned int times);
+rt_int32_t split_int(const rt_int32_t num, rt_int32_t *integer, 
+                     rt_int32_t *decimal, const rt_uint32_t times);
 
-/* int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg); */
+rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg);
 
 #endif /* __DHTXX_H__ */

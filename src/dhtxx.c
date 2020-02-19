@@ -8,7 +8,19 @@
  * 2020-01-20     luhuadong    the first version
  */
 
+#include <board.h>
 #include "dhtxx.h"
+
+#define DBG_TAG "sensor.asair.dhtxx"
+#define DBG_LVL DBG_INFO
+#include <rtdbg.h>
+
+/* timing */
+#define DHT1x_BEGIN_TIME         20  /* ms */
+#define DHT2x_BEGIN_TIME         1   /* ms */
+#define DHTxx_PULL_TIME          30  /* us */
+#define DHTxx_REPLY_TIME         100 /* us */
+#define MEASURE_TIME             40  /* us */
 
 RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
 {
@@ -21,6 +33,64 @@ RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
 }
 
 /**
+ * This function will split a number into two part according to times.
+ *
+ * @param num      the number will be split
+ * @param integer  the integer part
+ * @param decimal  the decimal part
+ * @param times    how many times of the real number (you should use 10 in this case)
+ *
+ * @return 0 if num is positive, 1 if num is negative
+ */
+int split_int(const int num, int *integer, int *decimal, const rt_uint32_t times)
+{
+    int flag = 0;
+    if (num < 0) flag = 1;
+
+    int anum = num<0 ? -num : num;
+    *integer = anum / times;
+    *decimal = anum % times;
+
+    return flag;
+}
+
+/**
+ * This function will convert temperature in degree Celsius to Kelvin.
+ *
+ * @param c  the temperature indicated by degree Celsius
+ *
+ * @return the result
+ */
+float convert_c2k(float c)
+{
+    return c + 273.15;
+}
+
+/**
+ * This function will convert temperature in degree Celsius to Fahrenheit.
+ *
+ * @param c  the temperature indicated by degree Celsius
+ *
+ * @return the result
+ */
+float convert_c2f(float c)
+{
+    return c * 1.8 + 32;
+}
+
+/**
+ * This function will convert temperature in degree Fahrenheit to Celsius.
+ *
+ * @param f  the temperature indicated by degree Fahrenheit
+ *
+ * @return the result
+ */
+float convert_f2c(float f)
+{
+    return (f - 32) * 0.55555;
+}
+
+/**
  * This function will read a bit from sensor.
  *
  * @param pin  the pin of Dout
@@ -29,24 +99,24 @@ RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
  */
 static uint8_t dht_read_bit(const rt_base_t pin)
 {
-	uint8_t retry = 0;
+    uint8_t retry = 0;
 
-	while(rt_pin_read(pin) && retry < DHTxx_REPLY_TIME)
+    while(rt_pin_read(pin) && retry < DHTxx_REPLY_TIME)
     {
         retry++;
         rt_hw_us_delay(1);
     }
 
-	retry = 0;
-	while(!rt_pin_read(pin) && retry < DHTxx_REPLY_TIME)
+    retry = 0;
+    while(!rt_pin_read(pin) && retry < DHTxx_REPLY_TIME)
     {
         retry++;
         rt_hw_us_delay(1);
     }
 
-	rt_hw_us_delay(MEASURE_TIME);
-	
-	return rt_pin_read(pin);
+    rt_hw_us_delay(MEASURE_TIME);
+    
+    return rt_pin_read(pin);
 }
 
 /**
@@ -58,39 +128,15 @@ static uint8_t dht_read_bit(const rt_base_t pin)
  */
 static uint8_t dht_read_byte(const rt_base_t pin)
 {
-	uint8_t i, byte = 0;
+    uint8_t i, byte = 0;
 
     for(i=0; i<8; i++)
     {
         byte <<= 1;
-		byte |= dht_read_bit(pin);
+        byte |= dht_read_bit(pin);
     }
 
     return byte;
-}
-
-/**
- * This function will init dhtxx sensor device.
- *
- * @param dev  the device to init
- * @param type the type of sensor
- * @param pin  the pin of Dout
- *
- * @return the device handler
- */
-dht_device_t dht_init(dht_device_t dev, const dht_type type, const rt_base_t pin)
-{
-	if(dev == NULL) return RT_NULL;
-	
-	dev->type = type;
-	dev->pin  = pin;
-
-	dev->begin_time = DHT2x_BEGIN_TIME;
-	if(type == SENSOR_DHT11) dev->begin_time = DHT11_BEGIN_TIME;
-
-	rt_memset(dev->data, 0, DHT_DATA_SIZE);
-
-	return dev;
 }
 
 /**
@@ -102,17 +148,22 @@ dht_device_t dht_init(dht_device_t dev, const dht_type type, const rt_base_t pin
  */
 rt_bool_t dht_read(dht_device_t dev)
 {
-	RT_ASSERT(dev);
+    RT_ASSERT(dev);
 
-	uint8_t i, retry = 0, sum = 0;
+    uint8_t i, retry = 0, sum = 0;
 
-	/* Reset data buffer */
-	rt_memset(dev->data, 0, DHT_DATA_SIZE);
+    /* Reset data buffer */
+    rt_memset(dev->data, 0, DHT_DATA_SIZE);
 
-	/* MCU request sampling */
-	rt_pin_mode(dev->pin, PIN_MODE_OUTPUT);
+    /* MCU request sampling */
+    rt_pin_mode(dev->pin, PIN_MODE_OUTPUT);
     rt_pin_write(dev->pin, PIN_LOW);
-    rt_thread_mdelay(dev->begin_time);             /* Tbe */
+
+    if (dev->type == DHT11 || dev->type == DHT12) {
+        rt_thread_mdelay(DHT1x_BEGIN_TIME);        /* Tbe */
+    } else {
+        rt_thread_mdelay(DHT2x_BEGIN_TIME);
+    }
 
     rt_pin_mode(dev->pin, PIN_MODE_INPUT_PULLUP);
     rt_hw_us_delay(DHTxx_PULL_TIME);               /* Tgo */
@@ -135,18 +186,18 @@ rt_bool_t dht_read(dht_device_t dev)
 
     /* Read data */
     for(i=0; i<DHT_DATA_SIZE; i++)
-	{
-		dev->data[i] = dht_read_byte(dev->pin);
-	}
+    {
+        dev->data[i] = dht_read_byte(dev->pin);
+    }
 
-	/* Checksum */
+    /* Checksum */
     for(i=0; i<DHT_DATA_SIZE-1; i++)
-	{
-		sum += dev->data[i];
-	}
-	if(sum != dev->data[4]) return RT_FALSE;
+    {
+        sum += dev->data[i];
+    }
+    if(sum != dev->data[4]) return RT_FALSE;
 
-	return RT_TRUE;
+    return RT_TRUE;
 }
 
 /**
@@ -156,26 +207,27 @@ rt_bool_t dht_read(dht_device_t dev)
  *
  * @return the humidity value
  */
-float dht_get_humidity(dht_device_t const dev)
+rt_int32_t dht_get_humidity(dht_device_t const dev)
 {
-	RT_ASSERT(dev);
+    RT_ASSERT(dev);
 
-	float h = 0.0;
+    rt_int32_t humi = 0;
 
-	switch(dev->type)
-	{
-	case SENSOR_DHT11:
-		h = dev->data[0] + dev->data[1] * 0.1;
-		break;
-	case SENSOR_DHT21:
-	case SENSOR_DHT22:
-		h = ((dev->data[0] << 8) + dev->data[1]) * 0.1;
-		break;
-	default:
-		break;
-	}
+    switch(dev->type)
+    {
+    case DHT11:
+    case DHT12:
+        humi = dev->data[0] * 10 + dev->data[1];
+        break;
+    case DHT21:
+    case DHT22:
+        humi = (dev->data[0] << 8) + dev->data[1];
+        break;
+    default:
+        break;
+    }
 
-	return h;
+    return humi;
 }
 
 /**
@@ -185,85 +237,73 @@ float dht_get_humidity(dht_device_t const dev)
  *
  * @return the temperature value
  */
-float dht_get_temperature(dht_device_t const dev)
+rt_int32_t dht_get_temperature(dht_device_t const dev)
 {
-	RT_ASSERT(dev);
+    RT_ASSERT(dev);
 
-	float t = 0.0;
+    rt_int32_t temp = 0;
 
-	switch(dev->type)
-	{
-	case SENSOR_DHT11:
-		t = dev->data[2] + dev->data[3] * 0.1;
-		break;
-	case SENSOR_DHT21:
-	case SENSOR_DHT22:
-		t = (((dev->data[2] & 0x7f) << 8) + dev->data[3]) * 0.1;
-		if(dev->data[2] & 0x80) {
-			t = -t;
-		}
-		break;
-	default:
-		break;
-	}
+    switch(dev->type)
+    {
+    case DHT11:
+    case DHT12:
+        temp = dev->data[2] * 10 + dev->data[3];
+        break;
+    case DHT21:
+    case DHT22:
+        temp = ((dev->data[2] & 0x7f) << 8) + dev->data[3];
+        if(dev->data[2] & 0x80) {
+            temp = -temp;
+        }
+        break;
+    default:
+        break;
+    }
 
-	return t;
+    return temp;
 }
 
 /**
- * This function will convert temperature in degree Celsius to Kelvin.
+ * This function will init dhtxx sensor device.
  *
- * @param c  the temperature indicated by degree Celsius
+ * @param dev  the device to init
+ * @param type the type of sensor
+ * @param pin  the pin of Dout
  *
- * @return the result
+ * @return the device handler
  */
-float convert_c2k(float c)
+rt_err_t dht_init(dht_device_t dev, const rt_uint8_t type, const rt_base_t pin)
 {
-	return c + 273.15;
+    if(dev == NULL)
+        return -RT_ERROR;
+
+    dev->type = type;
+    dev->pin  = pin;
+
+    rt_memset(dev->data, 0, DHT_DATA_SIZE);
+    return RT_EOK;
 }
 
-/**
- * This function will convert temperature in degree Celsius to Fahrenheit.
- *
- * @param c  the temperature indicated by degree Celsius
- *
- * @return the result
- */
-float convert_c2f(float c)
+dht_device_t dht_create(const rt_uint8_t type, const rt_base_t pin)
 {
-	return c * 1.8 + 32;
+    dht_device_t dev;
+
+    dev = rt_calloc(1, sizeof(struct dht_device));
+    if (dev == RT_NULL)
+    {
+        LOG_E("Can't allocate memory for dhtxx device");
+        return RT_NULL;
+    }
+
+    dev->type = type;
+    dev->pin  = pin;
+
+    rt_memset(dev->data, 0, DHT_DATA_SIZE);
+    return dev;
 }
 
-/**
- * This function will convert temperature in degree Fahrenheit to Celsius.
- *
- * @param f  the temperature indicated by degree Fahrenheit
- *
- * @return the result
- */
-float convert_f2c(float f)
+void dht_delete(dht_device_t dev)
 {
-	return (f - 32) * 0.55555;
-}
-
-/**
- * This function will split a number into two part according to times.
- *
- * @param num      the number will be split
- * @param integer  the integer part
- * @param decimal  the decimal part
- * @param times    how many times of the real number (you should use 10 in this case)
- *
- * @return 0 if num is positive, 1 if num is negative
- */
-int split_int(const int num, int *integer, int *decimal, const unsigned int times)
-{
-    int flag = 0;
-    if (num < 0) flag = 1;
-
-	int anum = num<0 ? -num : num;
-	*integer = anum / times;
-	*decimal = anum % times;
-
-	return flag;
+    if (dev)
+        rt_free(dev);
 }
