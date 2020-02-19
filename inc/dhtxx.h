@@ -16,7 +16,7 @@
 #include <rtdevice.h>
 #include <board.h>
 
-#define DHTLIB_VERSION       "0.0.1"
+#define DHTLIB_VERSION       "0.1.0"
 
 /* timing */
 #define DHT11_BEGIN_TIME     20  /* ms */
@@ -53,6 +53,8 @@ float dht_get_temperature(dht_device_t dev);
 float convert_c2k(float c);
 float convert_c2f(float c);
 float convert_f2c(float f);
+
+int split_int(const int num, int *integer, int *decimal, const unsigned int times);
 
 /* int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg); */
 

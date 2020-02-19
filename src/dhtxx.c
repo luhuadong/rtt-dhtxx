@@ -245,3 +245,25 @@ float convert_f2c(float f)
 {
 	return (f - 32) * 0.55555;
 }
+
+/**
+ * This function will split a number into two part according to times.
+ *
+ * @param num      the number will be split
+ * @param integer  the integer part
+ * @param decimal  the decimal part
+ * @param times    how many times of the real number (you should use 10 in this case)
+ *
+ * @return 0 if num is positive, 1 if num is negative
+ */
+int split_int(const int num, int *integer, int *decimal, const unsigned int times)
+{
+    int flag = 0;
+    if (num < 0) flag = 1;
+
+	int anum = num<0 ? -num : num;
+	*integer = anum / times;
+	*decimal = anum % times;
+
+	return flag;
+}

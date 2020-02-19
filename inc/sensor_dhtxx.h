@@ -14,6 +14,8 @@
 #include <rtthread.h>
 #include <rtdevice.h>
 
+#define DHTLIB_VERSION       "0.1.0"
+
 #define DHT11                0
 #define DHT12                1
 #define DHT21                2

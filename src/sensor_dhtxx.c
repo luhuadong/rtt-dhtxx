@@ -10,14 +10,21 @@
 
 #include "sensor_dhtxx.h"
 
-#define DHTLIB_VERSION       "0.0.1"
-
 /* timing */
-#define DHT11_BEGIN_TIME     20  /* ms */
-#define DHT2x_BEGIN_TIME     1   /* ms */
-#define DHTxx_PULL_TIME      30  /* us */
-#define DHTxx_REPLY_TIME     100 /* us */
-#define MEASURE_TIME         40  /* us */
+#define DHT1x_BEGIN_TIME         20  /* ms */
+#define DHT2x_BEGIN_TIME         1   /* ms */
+#define DHTxx_PULL_TIME          30  /* us */
+#define DHTxx_REPLY_TIME         100 /* us */
+#define MEASURE_TIME             40  /* us */
+
+/* range by ten times */
+#define SENSOR_TEMP_RANGE_MAX    (800)
+#define SENSOR_TEMP_RANGE_MIN    (-400)
+#define SENSOR_HUMI_RANGE_MAX    (1000)
+#define SENSOR_HUMI_RANGE_MIN    (0)
+
+/* minial period (ms) */
+#define SENSOR_PERIOD_MIN        1000
 
 static struct dht_model_table[] = {"dht11", "dht12", "dht21", "dht22"};
 
@@ -30,6 +37,22 @@ RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
     delta = SysTick->VAL;
 
     while (delta - SysTick->VAL < us) continue;
+}
+
+/**
+ * This function will init dhtxx sensor device.
+ *
+ * @param dev  the device to init
+ * @param type the type of sensor
+ * @param pin  the pin of Dout
+ *
+ * @return the device handler
+ */
+static int _dht_init(struct rt_sensor_intf *intf)
+{   
+    rt_pin_mode((rt_base_t)intf->user_data, PIN_MODE_INPUT_PULLUP);
+
+    return RT_EOK;
 }
 
 /**
@@ -82,48 +105,39 @@ static uint8_t dht_read_byte(const rt_base_t pin)
 }
 
 /**
- * This function will init dhtxx sensor device.
- *
- * @param dev  the device to init
- * @param type the type of sensor
- * @param pin  the pin of Dout
- *
- * @return the device handler
- */
-static int dht_init(struct rt_sensor_intf *intf)
-{
-    /* type <= intf->type, pin <= intf->user_data */
-    /* I don't know what can I do */
-
-    return RT_EOK;
-}
-
-/**
  * This function will read and update data array.
  *
  * @param dev  the device to be operated
  *
  * @return RT_TRUE if read successfully, otherwise return RT_FALSE.
  */
-rt_bool_t dht_read(dht_device_t dev)
+rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[], rt_size_t len)
 {
-	RT_ASSERT(dev);
+    RT_ASSERT(data);
 
-	uint8_t i, retry = 0, sum = 0;
+    rt_uint8_t type = sensor->config.intf.type;
+    rt_base_t  pin  = (rt_base_t)sensor->config.intf.user_data;
 
-	/* Reset data buffer */
-	rt_memset(dev->data, 0, DHT_DATA_SIZE);
+    uint8_t i, retry = 0, sum = 0;
 
-	/* MCU request sampling */
-	rt_pin_mode(dev->pin, PIN_MODE_OUTPUT);
-    rt_pin_write(dev->pin, PIN_LOW);
-    rt_thread_mdelay(dev->begin_time);             /* Tbe */
+    /* Reset data buffer */
+    rt_memset(data, 0, len);
 
-    rt_pin_mode(dev->pin, PIN_MODE_INPUT_PULLUP);
+    /* MCU request sampling */
+    rt_pin_mode(pin, PIN_MODE_OUTPUT);
+    rt_pin_write(pin, PIN_LOW);
+
+    if (type == DHT11 || type == DHT12) {
+        rt_thread_mdelay(DHT1x_BEGIN_TIME);        /* Tbe */
+    } else {
+        rt_thread_mdelay(DHT2x_BEGIN_TIME);
+    }
+
+    rt_pin_mode(pin, PIN_MODE_INPUT_PULLUP);
     rt_hw_us_delay(DHTxx_PULL_TIME);               /* Tgo */
 
     /* Waiting for sensor reply */
-    while (rt_pin_read(dev->pin) && retry < DHTxx_REPLY_TIME)
+    while (rt_pin_read(pin) && retry < DHTxx_REPLY_TIME)
     {
         retry++;
         rt_hw_us_delay(1);                         /* Trel */
@@ -131,7 +145,7 @@ rt_bool_t dht_read(dht_device_t dev)
     if(retry >= DHTxx_REPLY_TIME) return RT_FALSE;
 
     retry = 0;
-    while (!rt_pin_read(dev->pin) && retry < DHTxx_REPLY_TIME)
+    while (!rt_pin_read(pin) && retry < DHTxx_REPLY_TIME)
     {
         retry++;
         rt_hw_us_delay(1);                         /* Treh */
@@ -141,15 +155,15 @@ rt_bool_t dht_read(dht_device_t dev)
     /* Read data */
     for(i=0; i<DHT_DATA_SIZE; i++)
 	{
-		dev->data[i] = dht_read_byte(dev->pin);
+		data[i] = dht_read_byte(pin);
 	}
 
 	/* Checksum */
     for(i=0; i<DHT_DATA_SIZE-1; i++)
 	{
-		sum += dev->data[i];
+		sum += data[i];
 	}
-	if(sum != dev->data[4]) return RT_FALSE;
+	if(sum != data[4]) return RT_FALSE;
 
 	return RT_TRUE;
 }
@@ -161,26 +175,27 @@ rt_bool_t dht_read(dht_device_t dev)
  *
  * @return the humidity value
  */
-float dht_get_humidity(dht_device_t const dev)
+static rt_int32_t _dht_get_humidity(struct rt_sensor_device *sensor, rt_uint8_t raw_data[])
 {
-	RT_ASSERT(dev);
+    RT_ASSERT(raw_data);
 
-	float h = 0.0;
+    rt_int32_t humi = 0;
 
-	switch(dev->type)
+	switch (sensor->config.intf.type)
 	{
-	case SENSOR_DHT11:
-		h = dev->data[0] + dev->data[1] * 0.1;
+	case DHT11:
+    case DHT12:
+		humi = raw_data[0] * 10 + raw_data[1];
 		break;
-	case SENSOR_DHT21:
-	case SENSOR_DHT22:
-		h = ((dev->data[0] << 8) + dev->data[1]) * 0.1;
+	case DHT21:
+	case DHT22:
+		humi = (raw_data[0] << 8) + raw_data[1];
 		break;
 	default:
 		break;
 	}
 
-	return h;
+	return humi;
 }
 
 /**
@@ -190,78 +205,106 @@ float dht_get_humidity(dht_device_t const dev)
  *
  * @return the temperature value
  */
-float dht_get_temperature(dht_device_t const dev)
+static rt_int32_t _dht_get_temperature(struct rt_sensor_device *sensor, rt_uint8_t raw_data[])
 {
-	RT_ASSERT(dev);
+	RT_ASSERT(raw_data);
 
-	float t = 0.0;
+	rt_int32_t temp = 0;
 
-	switch(dev->type)
+	switch (sensor->config.intf.type)
 	{
-	case SENSOR_DHT11:
-		t = dev->data[2] + dev->data[3] * 0.1;
+	case DHT11:
+    case DHT12:
+		temp = raw_data[2] * 10 + raw_data[3];
 		break;
-	case SENSOR_DHT21:
-	case SENSOR_DHT22:
-		t = (((dev->data[2] & 0x7f) << 8) + dev->data[3]) * 0.1;
-		if(dev->data[2] & 0x80) {
-			t = -t;
+	case DHT21:
+	case DHT22:
+		temp = ((raw_data[2] & 0x7f) << 8) + raw_data[3];
+		if(raw_data[2] & 0x80) {
+			temp = -temp;
 		}
 		break;
 	default:
 		break;
 	}
 
-	return t;
+	return temp;
+}
+
+static rt_size_t _dht_polling_get_data(struct rt_sensor_device *sensor, void *buf)
+{
+    struct rt_sensor_data *sensor_data = buf;
+
+    rt_uint8_t raw_data[DHT_DATA_SIZE] = {0};
+    if (_dht_read(sensor, raw_data))
+    {
+        LOG_E("Can not read from %s", sensor->info.model);
+        return 0;
+    }
+    rt_uint32_t timestamp = rt_sensor_get_ts();
+    rt_int32_t temp = _dht_get_temperature(sensor, raw_data);
+    rt_int32_t humi = _dht_get_humidity(sensor, raw_data);
+
+    if (sensor->info.type == RT_SENSOR_CLASS_HUMI)
+    {
+        sensor_data->type = RT_SENSOR_CLASS_HUMI;
+        sensor_data->data.humi = humi;
+        sensor_data->timestamp = timestamp;
+
+        struct rt_sensor_data *partner_data = (struct rt_sensor_data *)sensor->module->sen[1]->data_buf;
+        partner_data->type = RT_SENSOR_CLASS_TEMP;
+        partner_data->data.temp = temp;
+        partner_data->timestamp = timestamp;
+        sensor->module->sen[1]->data_len = sizeof(struct rt_sensor_data);
+    }
+    else if (sensor->info.type == RT_SENSOR_CLASS_TEMP)
+    {
+        sensor_data->type = RT_SENSOR_CLASS_TEMP;
+        sensor_data->data.temp = temp;
+        sensor_data->timestamp = timestamp;
+
+        struct rt_sensor_data *partner_data = (struct rt_sensor_data *)sensor->module->sen[0]->data_buf;
+        partner_data->type = RT_SENSOR_CLASS_HUMI;
+        partner_data->data.humi = humi;
+        partner_data->timestamp = timestamp;
+        sensor->module->sen[0]->data_len = sizeof(struct rt_sensor_data);
+    }
+
+    return 1;
 }
 
 static rt_size_t dht_fetch_data(struct rt_sensor_device *sensor, void *buf, rt_size_t len)
 {
-    RT_ASSERT(sensor);
-    RT_ASSERT(buf);
-
     if (sensor->config.mode == RT_SENSOR_MODE_POLLING)
     {
-        return _ds18b20_polling_get_data(sensor, buf);
+        return _dht_polling_get_data(sensor, buf);
     }
     else
         return 0;
 }
-static rt_size_t bme280_fetch_data(struct rt_sensor_device *sensor, void *buf, rt_size_t len)
-{
-    struct bme280_data comp_data;
-    struct rt_sensor_data *data = buf;
-        
-    if (sensor->info.type == RT_SENSOR_CLASS_BARO)
-    {
-        bme280_get_sensor_data(BME280_PRESS, &comp_data, &_bme280_dev);
 
-        data->type = RT_SENSOR_CLASS_BARO;
-        data->data.baro = comp_data.pressure;
-        data->timestamp = rt_sensor_get_ts();
-    }
-    else if (sensor->info.type == RT_SENSOR_CLASS_TEMP)
-    {
-        bme280_get_sensor_data(BME280_TEMP, &comp_data, &_bme280_dev);
-
-        data->type = RT_SENSOR_CLASS_TEMP;
-        data->data.temp = comp_data.temperature / 10;
-        data->timestamp = rt_sensor_get_ts();
-    }
-    else if (sensor->info.type == RT_SENSOR_CLASS_HUMI)
-    {
-        bme280_get_sensor_data(BME280_HUM, &comp_data, &_bme280_dev);
-
-        data->type = RT_SENSOR_CLASS_HUMI;
-        data->data.humi = comp_data.humidity / 100;
-        data->timestamp = rt_sensor_get_ts();
-    }
-    return 1;
-}
-
+/*
+ * now not support
+ */
 static rt_err_t dht_control(struct rt_sensor_device *sensor, int cmd, void *args)
 {
     rt_err_t result = RT_EOK;
+
+    switch (cmd)
+    {
+    case RT_SENSOR_CTRL_GET_ID:
+        break;
+    case RT_SENSOR_CTRL_SET_RANGE:
+        break;
+    case RT_SENSOR_CTRL_SET_ODR:
+        break;
+    case RT_SENSOR_CTRL_SET_POWER:
+        break;
+    case RT_SENSOR_CTRL_SELF_TEST:
+        break;
+    default:
+        break;
+    }
 
     return result;
 }
@@ -285,21 +328,19 @@ int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     rt_sensor_t sensor_temp = RT_NULL, sensor_humi = RT_NULL;
     struct rt_sensor_module *dht_module = RT_NULL;
 
-    if (dht_init(&cfg->intf) != RT_EOK)
+    if (_dht_init(&cfg->intf) != RT_EOK)
     {
-        return RT_ERROR;
+        return -RT_ERROR;
     }
     
     module = rt_calloc(1, sizeof(struct rt_sensor_module));
     if (module == RT_NULL)
     {
-        return -1;
+        return -RT_ENOMEM;
     }
     module->sen[0] = sensor_humi;
     module->sen[1] = sensor_temp;
     module->sen_num = 2;
-
-    //char *model_name = dht_model_table[(dht_info_t)(cfg->intf.user_data)->type];
 
     /* humidity sensor register */
     {
@@ -312,13 +353,17 @@ int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
         sensor_humi->info.model      = dht_model_table[cfg->intf.type];
         sensor_humi->info.unit       = RT_SENSOR_UNIT_PERMILLAGE;
         sensor_humi->info.intf_type  = RT_SENSOR_INTF_ONEWIRE;
-        sensor_baro->info.range_max  = 1000;
-        sensor_baro->info.range_min  = 0;
-        sensor_humi->info.period_min = 2000;
+        sensor_humi->info.range_max  = SENSOR_HUMI_RANGE_MAX;
+        sensor_humi->info.range_min  = SENSOR_HUMI_RANGE_MIN;
+        sensor_humi->info.period_min = SENSOR_PERIOD_MIN;
 
         rt_memcpy(&sensor_humi->config, cfg, sizeof(struct rt_sensor_config));
         sensor_humi->ops = &sensor_ops;
         sensor_humi->module = module;
+
+        sensor_humi->data_buf = rt_calloc(1, sizeof(struct rt_sensor_data));
+        if (sensor_humi->data_buf == RT_NULL)
+            goto __exit;
         
         result = rt_hw_sensor_register(sensor_humi, name, RT_DEVICE_FLAG_RDWR, RT_NULL);
         if (result != RT_EOK)
@@ -339,13 +384,17 @@ int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
         sensor_temp->info.model      = dht_model_table[cfg->intf.type];
         sensor_temp->info.unit       = RT_SENSOR_UNIT_DCELSIUS;
         sensor_temp->info.intf_type  = RT_SENSOR_INTF_ONEWIRE;
-        sensor_baro->info.range_max  = 800;
-        sensor_baro->info.range_min  = -400;
-        sensor_temp->info.period_min = 2000;
+        sensor_temp->info.range_max  = SENSOR_TEMP_RANGE_MAX;
+        sensor_temp->info.range_min  = SENSOR_TEMP_RANGE_MIN;
+        sensor_temp->info.period_min = SENSOR_PERIOD_MIN;
 
         rt_memcpy(&sensor_temp->config, cfg, sizeof(struct rt_sensor_config));
         sensor_temp->ops = &sensor_ops;
         sensor_temp->module = module;
+
+        sensor_temp->data_buf = rt_calloc(1, sizeof(struct rt_sensor_data));
+        if (sensor_temp->data_buf == RT_NULL)
+            goto __exit;
         
         result = rt_hw_sensor_register(sensor_temp, name, RT_DEVICE_FLAG_RDWR, RT_NULL);
         if (result != RT_EOK)
@@ -360,12 +409,20 @@ int rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     return RT_EOK;
     
 __exit:
-    if(sensor_humi)
+    if(sensor_humi) 
+    {
+        if(sensor_humi->data_buf)
+            rt_free(sensor_humi->data_buf);
+
         rt_free(sensor_humi);
+    }
+    if(sensor_temp) 
+    {
+        if(sensor_temp->data_buf)
+            rt_free(sensor_temp->data_buf);
 
-    if(sensor_temp)
         rt_free(sensor_temp);
-
+    }
     if (module)
         rt_free(module);
 
