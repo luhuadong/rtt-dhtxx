@@ -15,7 +15,7 @@
 #include <rtdevice.h>
 #include <sensor.h>
 
-#define DHTLIB_VERSION       "0.1.2"
+#define DHTLIB_VERSION       "0.8.0"
 
 #define DHT11                0
 #define DHT12                1
