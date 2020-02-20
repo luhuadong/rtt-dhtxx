@@ -282,10 +282,13 @@ static rt_size_t _dht_polling_get_data(struct rt_sensor_device *sensor, void *bu
         sensor_data->timestamp = timestamp;
 
         struct rt_sensor_data *partner_data = (struct rt_sensor_data *)sensor->module->sen[1]->data_buf;
-        partner_data->type = RT_SENSOR_CLASS_TEMP;
-        partner_data->data.temp = temp;
-        partner_data->timestamp = timestamp;
-        sensor->module->sen[1]->data_len = sizeof(struct rt_sensor_data);
+        if (partner_data)
+        {
+            partner_data->type = RT_SENSOR_CLASS_TEMP;
+            partner_data->data.temp = temp;
+            partner_data->timestamp = timestamp;
+            sensor->module->sen[1]->data_len = sizeof(struct rt_sensor_data);
+        }
     }
     else if (sensor->info.type == RT_SENSOR_CLASS_TEMP)
     {
@@ -294,10 +297,13 @@ static rt_size_t _dht_polling_get_data(struct rt_sensor_device *sensor, void *bu
         sensor_data->timestamp = timestamp;
 
         struct rt_sensor_data *partner_data = (struct rt_sensor_data *)sensor->module->sen[0]->data_buf;
-        partner_data->type = RT_SENSOR_CLASS_HUMI;
-        partner_data->data.humi = humi;
-        partner_data->timestamp = timestamp;
-        sensor->module->sen[0]->data_len = sizeof(struct rt_sensor_data);
+        if (partner_data)
+        {
+            partner_data->type = RT_SENSOR_CLASS_HUMI;
+            partner_data->data.humi = humi;
+            partner_data->timestamp = timestamp;
+            sensor->module->sen[0]->data_len = sizeof(struct rt_sensor_data);
+        }
     }
 
     return 1;
