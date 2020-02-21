@@ -57,20 +57,6 @@ RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
 }
 
 /**
- * This function will init dhtxx sensor device.
- *
- * @param intf  interface 
- *
- * @return RT_EOK
- */
-static int _dht_init(struct dht_info *info)
-{
-    rt_pin_mode(info->pin, PIN_MODE_INPUT_PULLUP);
-
-    return RT_EOK;
-}
-
-/**
  * This function will read a bit from sensor.
  *
  * @param pin  the pin of Dout
@@ -360,6 +346,20 @@ static struct rt_sensor_ops sensor_ops =
 };
 
 /**
+ * This function will init dhtxx sensor device.
+ *
+ * @param intf  interface 
+ *
+ * @return RT_EOK
+ */
+static int _dht_init(struct dht_info *info)
+{
+    rt_pin_mode(info->pin, PIN_MODE_INPUT_PULLUP);
+
+    return RT_EOK;
+}
+
+/**
  * Call function rt_hw_dht_init for initial and register a dhtxx sensor.
  *
  * @param name  the name will be register into device framework
@@ -373,7 +373,9 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     rt_sensor_t sensor_temp = RT_NULL, sensor_humi = RT_NULL;
     struct rt_sensor_module *module = RT_NULL;
 
-    if (_dht_init((dht_info_t)cfg->intf.user_data) != RT_EOK)
+    dht_info_t dht_info = (dht_info_t)cfg->intf.user_data;
+
+    if (_dht_init(dht_info) != RT_EOK)
     {
         return -RT_ERROR;
     }
@@ -392,7 +394,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
 
         sensor_humi->info.type       = RT_SENSOR_CLASS_HUMI;
         sensor_humi->info.vendor     = RT_SENSOR_VENDOR_UNKNOWN;
-        sensor_humi->info.model      = dht_model_table[cfg->intf.type];
+        sensor_humi->info.model      = dht_model_table[dht_info->type];
         sensor_humi->info.unit       = RT_SENSOR_UNIT_PERMILLAGE;
         sensor_humi->info.intf_type  = RT_SENSOR_INTF_ONEWIRE;
         sensor_humi->info.range_max  = SENSOR_HUMI_RANGE_MAX;
@@ -421,7 +423,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
 
         sensor_temp->info.type       = RT_SENSOR_CLASS_TEMP;
         sensor_temp->info.vendor     = RT_SENSOR_VENDOR_UNKNOWN;
-        sensor_temp->info.model      = dht_model_table[cfg->intf.type];
+        sensor_temp->info.model      = dht_model_table[dht_info->type];
         sensor_temp->info.unit       = RT_SENSOR_UNIT_DCELSIUS;
         sensor_temp->info.intf_type  = RT_SENSOR_INTF_ONEWIRE;
         sensor_temp->info.range_max  = SENSOR_TEMP_RANGE_MAX;
