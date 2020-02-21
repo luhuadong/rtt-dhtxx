@@ -281,6 +281,8 @@ rt_err_t dht_init(dht_device_t dev, const rt_uint8_t type, const rt_base_t pin)
     dev->pin  = pin;
 
     rt_memset(dev->data, 0, DHT_DATA_SIZE);
+    rt_pin_mode(dev->pin, PIN_MODE_INPUT_PULLUP);
+    
     return RT_EOK;
 }
 
@@ -299,6 +301,8 @@ dht_device_t dht_create(const rt_uint8_t type, const rt_base_t pin)
     dev->pin  = pin;
 
     rt_memset(dev->data, 0, DHT_DATA_SIZE);
+    rt_pin_mode(dev->pin, PIN_MODE_INPUT_PULLUP);
+
     return dev;
 }
 
