@@ -106,10 +106,14 @@ INIT_APP_EXPORT(dht22_read_sample);
 
 static int rt_hw_dht22_port(void)
 {
+    static struct dht_info info;
     struct rt_sensor_config cfg;
+
+    info.type = DHT22;
+    info.pin  = DHT22_DATA_PIN;
     
-    cfg.intf.type = DHT22;
-    cfg.intf.user_data = (void *)DHT22_DATA_PIN;
+    cfg.intf.type = RT_SENSOR_INTF_ONEWIRE;
+    cfg.intf.user_data = (void *)&info;
     rt_hw_dht_init("dh2", &cfg);
     
     return RT_EOK;

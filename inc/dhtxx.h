@@ -26,6 +26,13 @@
 
 #define DHT_DATA_SIZE        5
 
+struct dht_info
+{
+    rt_base_t   pin;
+    rt_uint8_t  type;
+};
+typedef struct dht_info *dht_info_t;
+
 struct dht_device
 {
     rt_base_t   pin;

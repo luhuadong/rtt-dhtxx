@@ -63,9 +63,9 @@ RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
  *
  * @return RT_EOK
  */
-static int _dht_init(struct rt_sensor_intf *intf)
-{   
-    rt_pin_mode((rt_base_t)intf->user_data, PIN_MODE_INPUT_PULLUP);
+static int _dht_init(struct dht_info *info)
+{
+    rt_pin_mode(info->pin, PIN_MODE_INPUT_PULLUP);
 
     return RT_EOK;
 }
@@ -131,8 +131,14 @@ static rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[])
 {
     RT_ASSERT(data);
 
-    rt_uint8_t type = sensor->config.intf.type;
-    rt_base_t  pin  = (rt_base_t)sensor->config.intf.user_data;
+    dht_info_t dht_info = (dht_info_t)sensor->config.intf.user_data;
+    if (!dht_info)
+    {
+        LOG_E("user_data is null");
+        return RT_FALSE;
+    }
+    rt_uint8_t type = dht_info->type;
+    rt_base_t  pin  = dht_info->pin;
 
     uint8_t i, retry = 0, sum = 0;
 
@@ -209,8 +215,9 @@ static rt_int32_t _dht_get_humidity(struct rt_sensor_device *sensor, rt_uint8_t 
     RT_ASSERT(raw_data);
 
     rt_int32_t humi = 0;
+    dht_info_t dht_info = (dht_info_t)sensor->config.intf.user_data;
 
-    switch (sensor->config.intf.type)
+    switch (dht_info->type)
     {
     case DHT11:
     case DHT12:
@@ -240,8 +247,9 @@ static rt_int32_t _dht_get_temperature(struct rt_sensor_device *sensor, rt_uint8
     RT_ASSERT(raw_data);
 
     rt_int32_t temp = 0;
+    dht_info_t dht_info = (dht_info_t)sensor->config.intf.user_data;
 
-    switch (sensor->config.intf.type)
+    switch (dht_info->type)
     {
     case DHT11:
     case DHT12:
@@ -365,7 +373,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     rt_sensor_t sensor_temp = RT_NULL, sensor_humi = RT_NULL;
     struct rt_sensor_module *module = RT_NULL;
 
-    if (_dht_init(&cfg->intf) != RT_EOK)
+    if (_dht_init((dht_info_t)cfg->intf.user_data) != RT_EOK)
     {
         return -RT_ERROR;
     }
