@@ -120,7 +120,7 @@ static rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[])
     dht_info_t dht_info = (dht_info_t)sensor->config.intf.user_data;
     if (!dht_info)
     {
-        LOG_E("user_data is null");
+        LOG_D("user_data is null");
         return RT_FALSE;
     }
     rt_uint8_t type = dht_info->type;
@@ -152,7 +152,7 @@ static rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[])
     }
     if(retry >= DHTxx_REPLY_TIME)
     {
-        LOG_E("sensor reply timeout on low level");
+        LOG_D("sensor reply timeout on low level");
         return RT_FALSE;
     }
 
@@ -164,7 +164,7 @@ static rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[])
     };
     if(retry >= DHTxx_REPLY_TIME)
     {
-        LOG_E("sensor reply timeout on high level");
+        LOG_D("sensor reply timeout on high level");
         return RT_FALSE;
     }
 
@@ -181,7 +181,7 @@ static rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[])
     }
     if(sum != data[4])
     {
-        LOG_E("checksum error");
+        LOG_D("checksum error");
         return RT_FALSE;
     }
 
@@ -262,7 +262,7 @@ static rt_size_t _dht_polling_get_data(struct rt_sensor_device *sensor, void *bu
     rt_uint8_t raw_data[DHT_DATA_SIZE] = {0};
     if (RT_TRUE != _dht_read(sensor, raw_data))
     {
-        LOG_E("Can not read from %s", sensor->info.model);
+        LOG_D("Can not read from %s", sensor->info.model);
         return 0;
     }
     rt_uint32_t timestamp = rt_sensor_get_ts();
