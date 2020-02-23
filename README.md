@@ -157,8 +157,8 @@ rt_err_t   dht_init(struct dht_device *dev, const rt_uint8_t type, const rt_base
 | type      | 单总线数字温湿度传感器类型 |
 | pin       | 数据输出引脚               |
 | **返回**  | ——                         |
-| RT_EOK    | 创建成功                   |
-| -RT_ERROR | 创建失败                   |
+| RT_EOK    | 初始化成功                 |
+| -RT_ERROR | 初始化失败                 |
 
 
 
