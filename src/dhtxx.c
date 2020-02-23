@@ -272,7 +272,7 @@ rt_int32_t dht_get_temperature(dht_device_t const dev)
  *
  * @return the device handler
  */
-rt_err_t dht_init(dht_device_t dev, const rt_uint8_t type, const rt_base_t pin)
+rt_err_t dht_init(struct dht_device *dev, const rt_uint8_t type, const rt_base_t pin)
 {
     if(dev == NULL)
         return -RT_ERROR;
