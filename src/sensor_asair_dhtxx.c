@@ -127,6 +127,7 @@ static rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[])
     rt_base_t  pin  = dht_info->pin;
 
     uint8_t i, retry = 0, sum = 0;
+    rt_base_t level;
 
     /* Reset data buffer */
     rt_memset(data, 0, DHT_DATA_SIZE);
@@ -140,6 +141,10 @@ static rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[])
     } else {
         rt_thread_mdelay(DHT2x_BEGIN_TIME);
     }
+
+#ifdef PKG_USING_DHTXX_INTERRUPT_DISABLE
+    level = rt_hw_interrupt_disable();
+#endif
 
     rt_pin_mode(pin, PIN_MODE_INPUT_PULLUP);
     rt_hw_us_delay(DHTxx_PULL_TIME);               /* Tgo */
@@ -173,6 +178,10 @@ static rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[])
     {
         data[i] = _dht_read_byte(pin);
     }
+
+#ifdef PKG_USING_DHTXX_INTERRUPT_DISABLE
+    rt_hw_interrupt_enable(level);
+#endif
 
     /* Checksum */
     for(i=0; i<DHT_DATA_SIZE-1; i++)
