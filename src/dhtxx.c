@@ -151,6 +151,7 @@ rt_bool_t dht_read(dht_device_t dev)
     RT_ASSERT(dev);
 
     uint8_t i, retry = 0, sum = 0;
+    rt_base_t level;
 
     /* Reset data buffer */
     rt_memset(dev->data, 0, DHT_DATA_SIZE);
@@ -164,6 +165,10 @@ rt_bool_t dht_read(dht_device_t dev)
     } else {
         rt_thread_mdelay(DHT2x_BEGIN_TIME);
     }
+
+#ifdef PKG_USING_DHTXX_INTERRUPT_DISABLE
+    level = rt_hw_interrupt_disable();
+#endif
 
     rt_pin_mode(dev->pin, PIN_MODE_INPUT_PULLUP);
     rt_hw_us_delay(DHTxx_PULL_TIME);               /* Tgo */
@@ -189,6 +194,10 @@ rt_bool_t dht_read(dht_device_t dev)
     {
         dev->data[i] = dht_read_byte(dev->pin);
     }
+
+#ifdef PKG_USING_DHTXX_INTERRUPT_DISABLE
+    rt_hw_interrupt_enable(level);
+#endif
 
     /* Checksum */
     for(i=0; i<DHT_DATA_SIZE-1; i++)
