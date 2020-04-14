@@ -427,6 +427,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
         rt_memcpy(&sensor_humi->config, cfg, sizeof(struct rt_sensor_config));
         sensor_humi->ops = &sensor_ops;
         sensor_humi->module = module;
+        sensor_humi->config.intf.user_data = (void *)dht_info;
         
         result = rt_hw_sensor_register(sensor_humi, name, RT_DEVICE_FLAG_RDWR, RT_NULL);
         if (result != RT_EOK)
@@ -460,6 +461,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
         rt_memcpy(&sensor_temp->config, cfg, sizeof(struct rt_sensor_config));
         sensor_temp->ops = &sensor_ops;
         sensor_temp->module = module;
+        sensor_temp->config.intf.user_data = (void *)dht_info;
 
         result = rt_hw_sensor_register(sensor_temp, name, RT_DEVICE_FLAG_RDWR, RT_NULL);
         if (result != RT_EOK)
