@@ -382,26 +382,36 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     rt_sensor_t sensor_temp = RT_NULL, sensor_humi = RT_NULL;
     struct rt_sensor_module *module = RT_NULL;
 
-    //dht_info_t dht_info = (dht_info_t)cfg->intf.user_data;
     dht_info_t dht_info = rt_calloc(1, sizeof(struct dht_info));
+    if (dht_info == RT_NULL)
+    {
+        result = -RT_ENOMEM;
+        goto __exit;
+    }
     rt_memcpy(dht_info, cfg->intf.user_data, sizeof(struct dht_info));
 
     if (_dht_init(dht_info) != RT_EOK)
     {
-        return -RT_ERROR;
+        LOG_E("dhtxx sensor init failed");
+        result = -RT_ERROR;
+        goto __exit;
     }
     
     module = rt_calloc(1, sizeof(struct rt_sensor_module));
     if (module == RT_NULL)
     {
-        return -RT_ENOMEM;
+        result = -RT_ENOMEM;
+        goto __exit;
     }
 
     /* humidity sensor register */
     {
         sensor_humi = rt_calloc(1, sizeof(struct rt_sensor_device));
         if (sensor_humi == RT_NULL)
+        {
+            result = -RT_ENOMEM;
             goto __exit;
+        }
 
         sensor_humi->info.type       = RT_SENSOR_CLASS_HUMI;
         sensor_humi->info.vendor     = RT_SENSOR_VENDOR_ASAIR;
@@ -422,6 +432,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
         if (result != RT_EOK)
         {
             LOG_E("device register err code: %d", result);
+            result = -RT_ERROR;
             goto __exit;
         }
     }
@@ -430,7 +441,10 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     {
         sensor_temp = rt_calloc(1, sizeof(struct rt_sensor_device));
         if (sensor_temp == RT_NULL)
+        {
+            result = -RT_ENOMEM;
             goto __exit;
+        }
 
         sensor_temp->info.type       = RT_SENSOR_CLASS_TEMP;
         sensor_temp->info.vendor     = RT_SENSOR_VENDOR_ASAIR;
@@ -451,6 +465,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
         if (result != RT_EOK)
         {
             LOG_E("device register err code: %d", result);
+            result = -RT_ERROR;
             goto __exit;
         }
     }
@@ -483,5 +498,5 @@ __exit:
     if (dht_info)
         rt_free(dht_info);
 
-    return -RT_ERROR;
+    return result;
 }
