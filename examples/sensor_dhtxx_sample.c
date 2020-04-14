@@ -106,7 +106,7 @@ INIT_APP_EXPORT(dht22_read_sample);
 
 static int rt_hw_dht22_port(void)
 {
-    static struct dht_info info;
+    struct dht_info info;
     struct rt_sensor_config cfg;
 
     info.type = DHT22;
