@@ -382,7 +382,9 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     rt_sensor_t sensor_temp = RT_NULL, sensor_humi = RT_NULL;
     struct rt_sensor_module *module = RT_NULL;
 
-    dht_info_t dht_info = (dht_info_t)cfg->intf.user_data;
+    //dht_info_t dht_info = (dht_info_t)cfg->intf.user_data;
+    dht_info_t dht_info = rt_calloc(1, sizeof(struct dht_info));
+    rt_memcpy(dht_info, cfg->intf.user_data, sizeof(struct dht_info));
 
     if (_dht_init(dht_info) != RT_EOK)
     {
@@ -478,6 +480,8 @@ __exit:
     }
     if (module)
         rt_free(module);
+    if (dht_info)
+        rt_free(dht_info);
 
     return -RT_ERROR;
 }
