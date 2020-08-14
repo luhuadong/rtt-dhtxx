@@ -17,12 +17,14 @@
 
 #define DHTLIB_VERSION       "0.8.0"
 
+/* sensor model type */
 #define DHT11                0
 #define DHT12                1
 #define DHT21                2
 #define DHT22                3
 #define AM2301               DHT21
 #define AM2302               DHT22
+#define AM2320               DHT22
 
 #define DHT_DATA_SIZE        5
 
