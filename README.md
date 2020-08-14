@@ -1,11 +1,11 @@
 # rtt-dhtxx
-Digital Humidity and Temperature sensor (communicate via single bus), including DHT11, DHT21 and DHT22
+Digital Humidity and Temperature sensor (communicate via single bus), including DHT11, DHT21, DHT22, AM2320 ...
 
 
 
 ## 1、介绍
 
-dhtxx 是基于 RT-Thread 的 DHTxx 系列传感器驱动软件包，适用于单总线式数字温湿度传感器，包括 DHT11、DHT21 和 DHT22，并提供多种操作接口。
+dhtxx 是基于 RT-Thread 的 DHTxx 系列传感器驱动软件包，适用于单总线式数字温湿度传感器，包括 DHT11、DHT21、DHT22 和 AM2320 等型号，并提供多种操作接口。
 
 
 
