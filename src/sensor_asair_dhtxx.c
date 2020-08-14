@@ -278,6 +278,13 @@ static rt_size_t _dht_polling_get_data(struct rt_sensor_device *sensor, void *bu
     rt_int32_t temp = _dht_get_temperature(sensor, raw_data);
     rt_int32_t humi = _dht_get_humidity(sensor, raw_data);
 
+    if (temp < SENSOR_TEMP_RANGE_MIN || temp > SENSOR_TEMP_RANGE_MAX || 
+        humi < SENSOR_HUMI_RANGE_MIN || humi > SENSOR_HUMI_RANGE_MAX )
+    {
+        LOG_D("Data out of range");
+        return 0;
+    }
+
     if (sensor->info.type == RT_SENSOR_CLASS_HUMI)
     {
         sensor_data->type = RT_SENSOR_CLASS_HUMI;
@@ -382,24 +389,36 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     rt_sensor_t sensor_temp = RT_NULL, sensor_humi = RT_NULL;
     struct rt_sensor_module *module = RT_NULL;
 
-    dht_info_t dht_info = (dht_info_t)cfg->intf.user_data;
+    dht_info_t dht_info = rt_calloc(1, sizeof(struct dht_info));
+    if (dht_info == RT_NULL)
+    {
+        result = -RT_ENOMEM;
+        goto __exit;
+    }
+    rt_memcpy(dht_info, cfg->intf.user_data, sizeof(struct dht_info));
 
     if (_dht_init(dht_info) != RT_EOK)
     {
-        return -RT_ERROR;
+        LOG_E("dhtxx sensor init failed");
+        result = -RT_ERROR;
+        goto __exit;
     }
     
     module = rt_calloc(1, sizeof(struct rt_sensor_module));
     if (module == RT_NULL)
     {
-        return -RT_ENOMEM;
+        result = -RT_ENOMEM;
+        goto __exit;
     }
 
     /* humidity sensor register */
     {
         sensor_humi = rt_calloc(1, sizeof(struct rt_sensor_device));
         if (sensor_humi == RT_NULL)
+        {
+            result = -RT_ENOMEM;
             goto __exit;
+        }
 
         sensor_humi->info.type       = RT_SENSOR_CLASS_HUMI;
         sensor_humi->info.vendor     = RT_SENSOR_VENDOR_ASAIR;
@@ -415,11 +434,13 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
         rt_memcpy(&sensor_humi->config, cfg, sizeof(struct rt_sensor_config));
         sensor_humi->ops = &sensor_ops;
         sensor_humi->module = module;
+        sensor_humi->config.intf.user_data = (void *)dht_info;
         
         result = rt_hw_sensor_register(sensor_humi, name, RT_DEVICE_FLAG_RDWR, RT_NULL);
         if (result != RT_EOK)
         {
             LOG_E("device register err code: %d", result);
+            result = -RT_ERROR;
             goto __exit;
         }
     }
@@ -428,7 +449,10 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     {
         sensor_temp = rt_calloc(1, sizeof(struct rt_sensor_device));
         if (sensor_temp == RT_NULL)
+        {
+            result = -RT_ENOMEM;
             goto __exit;
+        }
 
         sensor_temp->info.type       = RT_SENSOR_CLASS_TEMP;
         sensor_temp->info.vendor     = RT_SENSOR_VENDOR_ASAIR;
@@ -444,11 +468,13 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
         rt_memcpy(&sensor_temp->config, cfg, sizeof(struct rt_sensor_config));
         sensor_temp->ops = &sensor_ops;
         sensor_temp->module = module;
+        sensor_temp->config.intf.user_data = (void *)dht_info;
 
         result = rt_hw_sensor_register(sensor_temp, name, RT_DEVICE_FLAG_RDWR, RT_NULL);
         if (result != RT_EOK)
         {
             LOG_E("device register err code: %d", result);
+            result = -RT_ERROR;
             goto __exit;
         }
     }
@@ -478,6 +504,8 @@ __exit:
     }
     if (module)
         rt_free(module);
+    if (dht_info)
+        rt_free(dht_info);
 
-    return -RT_ERROR;
+    return result;
 }

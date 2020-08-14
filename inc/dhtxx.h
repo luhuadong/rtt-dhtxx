@@ -5,7 +5,7 @@
  *
  * Change Logs:
  * Date           Author       Notes
- * 2020-01-20     RudyLo       the first version
+ * 2020-01-20     luhuadong    the first version
  */
 
 #ifndef __DHTXX_H__
@@ -15,7 +15,7 @@
 #include <rtdevice.h>
 #include <sensor.h>
 
-#define DHTLIB_VERSION       "0.8.0"
+#define DHTLIB_VERSION       "0.8.1"
 
 /* sensor model type */
 #define DHT11                0
