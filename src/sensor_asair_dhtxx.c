@@ -248,7 +248,10 @@ static rt_int32_t _dht_get_temperature(struct rt_sensor_device *sensor, rt_uint8
     {
     case DHT11:
     case DHT12:
-        temp = raw_data[2] * 10 + raw_data[3];
+        temp = raw_data[2] * 10 + (raw_data[3] & 0x7f);
+        if(raw_data[3] & 0x80) {
+            temp = -temp;
+        }
         break;
     case DHT21:
     case DHT22:

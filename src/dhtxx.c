@@ -256,7 +256,10 @@ rt_int32_t dht_get_temperature(dht_device_t const dev)
     {
     case DHT11:
     case DHT12:
-        temp = dev->data[2] * 10 + dev->data[3];
+        temp = dev->data[2] * 10 + (dev->data[3] & 0x7f);
+        if(dev->data[3] & 0x80) {
+            temp = -temp;
+        }
         break;
     case DHT21:
     case DHT22:
