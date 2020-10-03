@@ -11,8 +11,8 @@
 #include <board.h>
 #include "dhtxx.h"
 
-#define DBG_TAG "sensor.asair.dhtxx"
-#define DBG_LVL DBG_INFO
+#define DBG_TAG                  "sensor.asair.dhtxx"
+#define DBG_LVL                  DBG_LOG
 #include <rtdbg.h>
 
 /* timing */
