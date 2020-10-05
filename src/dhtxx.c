@@ -12,7 +12,11 @@
 #include "dhtxx.h"
 
 #define DBG_TAG                  "sensor.asair.dhtxx"
+#ifdef PKG_USING_DHTXX_DEBUG
 #define DBG_LVL                  DBG_LOG
+#else
+#define DBG_LVL                  DBG_ERROR
+#endif
 #include <rtdbg.h>
 
 /* timing */
@@ -279,17 +283,16 @@ rt_int32_t dht_get_temperature(dht_device_t const dev)
  * This function will init dhtxx sensor device.
  *
  * @param dev  the device to init
- * @param type the type of sensor
  * @param pin  the pin of Dout
  *
  * @return the device handler
  */
-rt_err_t dht_init(struct dht_device *dev, const rt_uint8_t type, const rt_base_t pin)
+rt_err_t dht_init(struct dht_device *dev, const rt_base_t pin)
 {
     if(dev == NULL)
         return -RT_ERROR;
 
-    dev->type = type;
+    dev->type = DHT_TYPE;
     dev->pin  = pin;
 
     rt_memset(dev->data, 0, DHT_DATA_SIZE);
@@ -298,7 +301,7 @@ rt_err_t dht_init(struct dht_device *dev, const rt_uint8_t type, const rt_base_t
     return RT_EOK;
 }
 
-dht_device_t dht_create(const rt_uint8_t type, const rt_base_t pin)
+dht_device_t dht_create(const rt_base_t pin)
 {
     dht_device_t dev;
 
@@ -309,7 +312,7 @@ dht_device_t dht_create(const rt_uint8_t type, const rt_base_t pin)
         return RT_NULL;
     }
 
-    dev->type = type;
+    dev->type = DHT_TYPE;
     dev->pin  = pin;
 
     rt_memset(dev->data, 0, DHT_DATA_SIZE);

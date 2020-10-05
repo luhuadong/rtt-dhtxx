@@ -37,12 +37,6 @@
 #define DHT_TYPE                             DHT22
 #endif
 
-struct dht_info
-{
-    rt_base_t   pin;
-    rt_uint8_t  type;
-};
-typedef struct dht_info *dht_info_t;
 
 struct dht_device
 {
@@ -53,10 +47,10 @@ struct dht_device
 };
 typedef struct dht_device *dht_device_t;
 
-dht_device_t dht_create(const rt_uint8_t type, const rt_base_t pin);
+dht_device_t dht_create(const rt_base_t pin);
 void dht_delete(dht_device_t dev);
 
-rt_err_t   dht_init(struct dht_device *dev, const rt_uint8_t type, const rt_base_t pin);
+rt_err_t   dht_init(struct dht_device *dev, const rt_base_t pin);
 rt_bool_t  dht_read(dht_device_t dev);
 rt_int32_t dht_get_humidity(dht_device_t dev);
 rt_int32_t dht_get_temperature(dht_device_t dev);

@@ -12,8 +12,11 @@
 #include "dhtxx.h"
 
 #define DBG_TAG                  "sensor.asair.dhtxx"
+#ifdef PKG_USING_DHTXX_DEBUG
 #define DBG_LVL                  DBG_LOG
-#include <rtdbg.h>
+#else
+#define DBG_LVL                  DBG_ERROR
+#endif
 
 /* timing */
 #define DHT1x_BEGIN_TIME         20  /* ms */
@@ -117,14 +120,8 @@ static rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[])
 {
     RT_ASSERT(data);
 
-    dht_info_t dht_info = (dht_info_t)sensor->config.intf.user_data;
-    if (!dht_info)
-    {
-        LOG_D("user_data is null");
-        return RT_FALSE;
-    }
-    rt_uint8_t type = dht_info->type;
-    rt_base_t  pin  = dht_info->pin;
+    rt_base_t  pin = (rt_base_t)sensor->config.intf.user_data;
+    rt_uint8_t type = DHT_TYPE;
 
     uint8_t i, retry = 0, sum = 0;
     rt_base_t level;
@@ -210,9 +207,8 @@ static rt_int32_t _dht_get_humidity(struct rt_sensor_device *sensor, rt_uint8_t 
     RT_ASSERT(raw_data);
 
     rt_int32_t humi = 0;
-    dht_info_t dht_info = (dht_info_t)sensor->config.intf.user_data;
 
-    switch (dht_info->type)
+    switch (DHT_TYPE)
     {
     case DHT11:
     case DHT12:
@@ -242,9 +238,8 @@ static rt_int32_t _dht_get_temperature(struct rt_sensor_device *sensor, rt_uint8
     RT_ASSERT(raw_data);
 
     rt_int32_t temp = 0;
-    dht_info_t dht_info = (dht_info_t)sensor->config.intf.user_data;
 
-    switch (dht_info->type)
+    switch (DHT_TYPE)
     {
     case DHT11:
     case DHT12:
@@ -371,9 +366,9 @@ static struct rt_sensor_ops sensor_ops =
  *
  * @return RT_EOK
  */
-static int _dht_init(struct dht_info *info)
+static int sensor_init(rt_base_t pin)
 {
-    rt_pin_mode(info->pin, PIN_MODE_INPUT_PULLUP);
+    rt_pin_mode(pin, PIN_MODE_INPUT_PULLUP);
 
     return RT_EOK;
 }
@@ -392,15 +387,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     rt_sensor_t sensor_temp = RT_NULL, sensor_humi = RT_NULL;
     struct rt_sensor_module *module = RT_NULL;
 
-    dht_info_t dht_info = rt_calloc(1, sizeof(struct dht_info));
-    if (dht_info == RT_NULL)
-    {
-        result = -RT_ENOMEM;
-        goto __exit;
-    }
-    rt_memcpy(dht_info, cfg->intf.user_data, sizeof(struct dht_info));
-
-    if (_dht_init(dht_info) != RT_EOK)
+    if (sensor_init((rt_base_t)cfg->intf.user_data) != RT_EOK)
     {
         LOG_E("dhtxx sensor init failed");
         result = -RT_ERROR;
@@ -425,7 +412,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
 
         sensor_humi->info.type       = RT_SENSOR_CLASS_HUMI;
         sensor_humi->info.vendor     = RT_SENSOR_VENDOR_ASAIR;
-        sensor_humi->info.model      = dht_model_table[dht_info->type];
+        sensor_humi->info.model      = dht_model_table[DHT_TYPE];
         sensor_humi->info.unit       = RT_SENSOR_UNIT_PERMILLAGE;
         sensor_humi->info.intf_type  = RT_SENSOR_INTF_ONEWIRE;
         sensor_humi->info.range_max  = SENSOR_HUMI_RANGE_MAX;
@@ -437,7 +424,6 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
         rt_memcpy(&sensor_humi->config, cfg, sizeof(struct rt_sensor_config));
         sensor_humi->ops = &sensor_ops;
         sensor_humi->module = module;
-        sensor_humi->config.intf.user_data = (void *)dht_info;
         
         result = rt_hw_sensor_register(sensor_humi, name, RT_DEVICE_FLAG_RDWR, RT_NULL);
         if (result != RT_EOK)
@@ -459,7 +445,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
 
         sensor_temp->info.type       = RT_SENSOR_CLASS_TEMP;
         sensor_temp->info.vendor     = RT_SENSOR_VENDOR_ASAIR;
-        sensor_temp->info.model      = dht_model_table[dht_info->type];
+        sensor_temp->info.model      = dht_model_table[DHT_TYPE];
         sensor_temp->info.unit       = RT_SENSOR_UNIT_DCELSIUS;
         sensor_temp->info.intf_type  = RT_SENSOR_INTF_ONEWIRE;
         sensor_temp->info.range_max  = SENSOR_TEMP_RANGE_MAX;
@@ -471,7 +457,6 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
         rt_memcpy(&sensor_temp->config, cfg, sizeof(struct rt_sensor_config));
         sensor_temp->ops = &sensor_ops;
         sensor_temp->module = module;
-        sensor_temp->config.intf.user_data = (void *)dht_info;
 
         result = rt_hw_sensor_register(sensor_temp, name, RT_DEVICE_FLAG_RDWR, RT_NULL);
         if (result != RT_EOK)
@@ -486,7 +471,7 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg)
     module->sen[1] = sensor_temp;
     module->sen_num = 2;
     
-    LOG_I("sensor init success");
+    LOG_D("sensor init success");
     
     return RT_EOK;
     
@@ -507,8 +492,6 @@ __exit:
     }
     if (module)
         rt_free(module);
-    if (dht_info)
-        rt_free(dht_info);
 
     return result;
 }
