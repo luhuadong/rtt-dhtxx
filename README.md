@@ -1,11 +1,11 @@
 # rtt-dhtxx
-Digital Humidity and Temperature sensor (communicate via single bus), including DHT11, DHT21, DHT22, AM2320 ...
+Digital Humidity and Temperature sensor (communicate via single bus), including DHT11, DHT12, DHT21, DHT22 ...
 
 
 
 ## 1、介绍
 
-dhtxx 是基于 RT-Thread 的 DHTxx 系列传感器驱动软件包，适用于单总线式数字温湿度传感器，包括 DHT11、DHT21、DHT22 和 AM2320 等型号，并提供多种操作接口。
+dhtxx 是基于 RT-Thread 的 DHTxx 系列传感器驱动软件包，适用于单总线式数字温湿度传感器，包括 DHT11、DHT12、DHT21 和 DHT22 等型号，并提供两种 API 操作接口。
 
 
 
@@ -89,9 +89,10 @@ RT-Thread online packages --->
 
 ### 3.2 配置选项
 
-- 是否使用示例程序（`PKG_USING_DHTXX_SAMPLE`）
-- 是否使用动态内存
-- 是否使用 sensor 框架
+- 选择传感器类型（目前可选 DHT11、DHT12、DHT21、DHT22，请根据规格书选择兼容型号）
+- 是否开启调试输出（将会打印更多调试信息）
+- 是否使用示例程序（添加 msh 示例程序 `cat_dhtxx` 和 `dhtxx_read_sample`，亦可通过 sensor 命令进行测试）
+  - 示例程序使用的 data 引脚号
 
 
 
@@ -104,29 +105,17 @@ RT-Thread online packages --->
 要操作传感器模块，首先需要创建一个传感器对象。
 
 ```c
-dht_device_t dht_create(const rt_uint8_t type, const rt_base_t pin);
+dht_device_t dht_create(const rt_base_t pin);
 ```
 
 调用这个函数时，会从动态堆内存中分配一个 dht_device_t 句柄，并按给定参数初始化。
 
 | 参数         | 描述                         |
 | ------------ | ---------------------------- |
-| type         | 单总线数字温湿度传感器类型   |
 | pin          | 数据输出引脚                 |
 | **返回**     | ——                           |
 | dht_device_t | 创建成功，返回传感器对象句柄 |
 | RT_NULL      | 创建失败                     |
-
-传感器类型目前支持：
-
-```c
-#define DHT11                0
-#define DHT12                1
-#define DHT21                2
-#define DHT22                3
-#define AM2301               DHT21
-#define AM2302               DHT22
-```
 
 对于使用 `dht_create()` 创建出来的对象，当不需要使用，或者运行出错时，请使用下面的函数接口将其删除，避免内存泄漏。
 
@@ -147,19 +136,18 @@ void dht_delete(dht_device_t dev);
 如果需要使用静态内存分配，则可调用 `dht_init()` 函数。
 
 ```c
-rt_err_t   dht_init(struct dht_device *dev, const rt_uint8_t type, const rt_base_t pin);
+rt_err_t   dht_init(struct dht_device *dev, const rt_base_t pin);
 ```
 
 使用该函数前需要先创建 dht_device 结构体。
 
-| 参数      | 描述                       |
-| --------- | -------------------------- |
-| dev       | 传感器对象结构体           |
-| type      | 单总线数字温湿度传感器类型 |
-| pin       | 数据输出引脚               |
-| **返回**  | ——                         |
-| RT_EOK    | 初始化成功                 |
-| -RT_ERROR | 初始化失败                 |
+| 参数      | 描述             |
+| --------- | ---------------- |
+| dev       | 传感器对象结构体 |
+| pin       | 数据输出引脚     |
+| **返回**  | ——               |
+| RT_EOK    | 初始化成功       |
+| -RT_ERROR | 初始化失败       |
 
 
 
@@ -226,25 +214,23 @@ rt_err_t rt_hw_dht_init(const char *name, struct rt_sensor_config *cfg);
 | RT_EOK    | 创建成功        |
 | -RT_ERROR | 创建失败        |
 
-为了支持 DHT11、DHT22 等多种传感器类型，在 sensor 接口部分定义了 `dht_info` 结构体，因此在调用 `rt_hw_dht_init` 初始化前需要构建该结构体。并且在使用完毕前不能释放该结构体内存，因此建议加上 static 关键字，或动态分配内存空间。如下所示：
+初始化示例：
 
 ```c
-static int rt_hw_dht22_port(void)
+static int rt_hw_dht_port(void)
 {
-    static struct dht_info info;
     struct rt_sensor_config cfg;
-
-    info.type = DHT22;
-    info.pin  = DHT22_DATA_PIN;
     
     cfg.intf.type = RT_SENSOR_INTF_ONEWIRE;
-    cfg.intf.user_data = (void *)&info;
-    rt_hw_dht_init("dh2", &cfg);
+    cfg.intf.user_data = (void *)DATA_PIN;
+    rt_hw_dht_init("dht", &cfg);
     
     return RT_EOK;
 }
-INIT_COMPONENT_EXPORT(rt_hw_dht22_port);
+INIT_COMPONENT_EXPORT(rt_hw_dht_port);
 ```
+
+v0.9.0 以上版本不再需要构建 `dht_info` 结构体，在 menuconfig 或 studio 中配置传感器类型即可。
 
 
 
@@ -307,8 +293,15 @@ rt_kprintf("Temp: %s%d.%d\n", flag > 0 ? "-" : "", integer, decimal);
 ## 5、注意事项
 
 1. 为传感器对象提供静态创建和动态创建两种方式，如果使用动态创建，请记得在使用完毕释放对应的内存空间。
+
 2. 由于 DHTxx 模块包含一个温度传感器和一个湿度传感器，因此在 sensor 框架中会注册两个设备，内部提供 1 位 FIFO 缓存进行同步，缓存空间在调用 `rt_device_open` 函数时创建，因此 read 之前务必确保两个设备都开启成功。
-3. dhtxx 软件包为支持 DHT11、DHT22 等多种传感器类型，在 sensor 接口部分定义了 `dht_info` 结构体，因此在调用 `rt_hw_dht_init` 初始化前需要构建并传入该结构体指针。
+
+3. v0.9.0 以上版本的初始化函数取消了 type 参数，以及 `dht_info` 结构体，传感器类型的配置移到 Kconfig，如果需要在一台设备上接入多个不同型号 DHT 传感器，请继续使用 v0.8.x 版本。其余开发阶段，建议使用新版本。
+
+   > v0.8.x 版本：dhtxx 软件包为支持 DHT11、DHT22 等多种传感器类型，在 sensor 接口部分定义了 `dht_info` 结构体，因此在调用 `rt_hw_dht_init` 初始化前需要构建并传入该结构体指针。
+
+   
+
 4. 获取的温度和湿度值均为真实值的十倍，因此应用层需要进行转换，软件包提供了 `split_int` 函数进行处理，可根据您的实际情况选择使用。
 
 
