@@ -40,9 +40,11 @@ static void read_humi_entry(void *args)
         if (1 != rt_device_read(humi_dev, 0, &sensor_data, 1)) 
         {
             rt_kprintf("Read humi data failed.\n");
-            continue;
         }
-        rt_kprintf("[%d] Humi: %d\n", sensor_data.timestamp, sensor_data.data.humi);
+        else
+        {
+            rt_kprintf("[%d] Humi: %d\n", sensor_data.timestamp, sensor_data.data.humi);
+        }
 
         rt_thread_mdelay(3000);
     }
@@ -73,10 +75,12 @@ static void read_temp_entry(void *args)
         if (1 != rt_device_read(temp_dev, 0, &sensor_data, 1)) 
         {
             rt_kprintf("Read temp data failed.\n");
-            continue;
         }
-        rt_kprintf("[%d] Temp: %d\n", sensor_data.timestamp, sensor_data.data.temp);
-
+        else
+        {
+            rt_kprintf("[%d] Temp: %d\n", sensor_data.timestamp, sensor_data.data.temp);
+        }
+        
         rt_thread_mdelay(3000);
     }
 
