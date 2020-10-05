@@ -15,18 +15,27 @@
 #include <rtdevice.h>
 #include <sensor.h>
 
-#define DHTLIB_VERSION       "0.8.1"
+#define DHTLIB_VERSION                       "0.9.0"
+#define DHT_DATA_SIZE                        5
 
 /* sensor model type */
-#define DHT11                0
-#define DHT12                1
-#define DHT21                2
-#define DHT22                3
-#define AM2301               DHT21
-#define AM2302               DHT22
-#define AM2320               DHT22
+#define DHT11                                0
+#define DHT12                                1
+#define DHT21                                2
+#define DHT22                                3
+#define AM2301                               DHT21
+#define AM2302                               DHT22
+#define AM2320                               DHT22
 
-#define DHT_DATA_SIZE        5
+#if defined(PKG_USING_DHTXX_TYPE_DHT11)
+#define DHT_TYPE                             DHT11
+#elif defined(PKG_USING_DHTXX_TYPE_DHT12)
+#define DHT_TYPE                             DHT12
+#elif defined(PKG_USING_DHTXX_TYPE_DHT21)
+#define DHT_TYPE                             DHT21
+#elif defined(PKG_USING_DHTXX_TYPE_DHT22)
+#define DHT_TYPE                             DHT22
+#endif
 
 struct dht_info
 {
