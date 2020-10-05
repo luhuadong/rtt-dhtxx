@@ -17,6 +17,7 @@
 #else
 #define DBG_LVL                  DBG_ERROR
 #endif
+#include <rtdbg.h>
 
 /* timing */
 #define DHT1x_BEGIN_TIME         20  /* ms */

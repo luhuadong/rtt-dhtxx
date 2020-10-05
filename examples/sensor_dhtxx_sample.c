@@ -15,6 +15,7 @@
 #include "dhtxx.h"
 
 #define DATA_PIN                 PKG_USING_DHTXX_SAMPLE_PIN
+#define TEST_COUNT               5
 
 static void read_humi_entry(void *args)
 {
@@ -34,7 +35,7 @@ static void read_humi_entry(void *args)
         return;
     }
 
-    while (1)
+    for (int i=0; i<TEST_COUNT; i++)
     {
         if (1 != rt_device_read(humi_dev, 0, &sensor_data, 1)) 
         {
@@ -67,7 +68,7 @@ static void read_temp_entry(void *args)
         return;
     }
 
-    while(1)
+    for (int i=0; i<TEST_COUNT; i++)
     {
         if (1 != rt_device_read(temp_dev, 0, &sensor_data, 1)) 
         {
@@ -103,7 +104,9 @@ static int dhtxx_read_sample(void)
         rt_thread_startup(temp_thread);
 
 }
-INIT_APP_EXPORT(dhtxx_read_sample);
+#ifdef FINSH_USING_MSH
+MSH_CMD_EXPORT(dhtxx_read_sample, read dhtxx sensor data);
+#endif
 
 
 static int rt_hw_dht_port(void)
