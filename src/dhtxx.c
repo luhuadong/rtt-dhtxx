@@ -155,7 +155,10 @@ rt_bool_t dht_read(dht_device_t dev)
     RT_ASSERT(dev);
 
     uint8_t i, retry = 0, sum = 0;
+
+#ifdef PKG_USING_DHTXX_INTERRUPT_DISABLE
     rt_base_t level;
+#endif
 
     /* Reset data buffer */
     rt_memset(dev->data, 0, DHT_DATA_SIZE);

@@ -125,7 +125,10 @@ static rt_bool_t _dht_read(struct rt_sensor_device *sensor, rt_uint8_t data[])
     rt_uint8_t type = DHT_TYPE;
 
     uint8_t i, retry = 0, sum = 0;
+
+#ifdef PKG_USING_DHTXX_INTERRUPT_DISABLE
     rt_base_t level;
+#endif
 
     /* Reset data buffer */
     rt_memset(data, 0, DHT_DATA_SIZE);
