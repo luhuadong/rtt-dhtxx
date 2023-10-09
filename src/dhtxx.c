@@ -46,7 +46,7 @@ RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
  *
  * @return 0 if num is positive, 1 if num is negative
  */
-int split_int(const int num, int *integer, int *decimal, const rt_uint32_t times)
+rt_int32_t split_int(const rt_int32_t num, rt_int32_t *integer, rt_int32_t *decimal, const rt_uint32_t times)
 {
     int flag = 0;
     if (num < 0) flag = 1;
