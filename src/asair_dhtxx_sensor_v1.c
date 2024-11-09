@@ -50,7 +50,7 @@ static char *const dht_model_table[] =
     "dht22"
 };
 
-RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
+WEAK_DEF void rt_hw_us_delay(rt_uint32_t us)
 {
     rt_uint32_t delta;
 
@@ -321,7 +321,7 @@ static rt_size_t _dht_polling_get_data(struct rt_sensor_device *sensor, void *bu
     return 1;
 }
 
-static rt_size_t dht_fetch_data(struct rt_sensor_device *sensor, void *buf, rt_size_t len)
+static RT_SIZE_TYPE dht_fetch_data(struct rt_sensor_device *sensor, void *buf, rt_size_t len)
 {
     if (sensor->config.mode == RT_SENSOR_MODE_POLLING)
     {

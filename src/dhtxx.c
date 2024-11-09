@@ -26,7 +26,7 @@
 #define DHTxx_REPLY_TIME         100 /* us */
 #define MEASURE_TIME             40  /* us */
 
-RT_WEAK void rt_hw_us_delay(rt_uint32_t us)
+WEAK_DEF void rt_hw_us_delay(rt_uint32_t us)
 {
     rt_uint32_t delta;
 
